@@ -17,19 +17,12 @@ module.exports = function(grunt) {
       vendor: {
         src: [],
         dest: 'public/vendor.js',
-        options: {
-          require: ['jquery'],
-          alias: {
-            momentWrapper: './lib/moments.js'
-          }
-        }
+       
       },
       client: {
         src: ['client/**/*.js'],
-        dest: 'public/app.js',
-        options: {
-          external: ['jquery', 'momentWrapper'],
-        }
+        dest: 'public/scripts.js',
+       
       }
     },
 
@@ -38,8 +31,7 @@ module.exports = function(grunt) {
     }
   });
 
-  grunt.loadTasks('../../tasks');
-  
+  grunt.loadNpmTasks('grunt-browserify');
   grunt.loadNpmTasks('grunt-contrib-concat');
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('grunt-contrib-watch');

@@ -5,7 +5,22 @@ var THREE = require("three");
 var OrbitControls = require("three-orbit-controls")(THREE);
 var TWEEN = require("tween");
 
-var camera, scene, renderer, controls, tween;
+
+var Geometry = require("./Geometry");
+
+var camera, scene, renderer, controls, tween, container, light, leapController;
+var hand = {};
+var rightIndexFingerSphere;
+var rightIndexPointerLine;
+var handGeo = {
+  right:{
+    indexFinger:{
+      sphere:rightIndexFingerSphere, 
+      pointer:rightIndexPointerLine
+    }
+  }
+};
+var leftIndexFingerSphere;
 init(window);
 animate();
 
@@ -16,7 +31,6 @@ function init(window) {
   camera.position.y = 400;
 
   scene = new THREE.Scene();
-  var light, object;
   scene.add( new THREE.AmbientLight( 0x404040 ) );
   light = new THREE.DirectionalLight( 0xffffff );
   light.position.set( 0, 1, 0 );
@@ -29,8 +43,8 @@ function init(window) {
   container.appendChild( renderer.domElement );
   window.addEventListener( 'resize', onWindowResize, false );
 
-  var cameraHelper = new THREE.CameraHelper(camera);
-  scene.add(cameraHelper);
+  // var cameraHelper = new THREE.CameraHelper(camera);
+  // scene.add(cameraHelper);
 
   var gridHelper = new THREE.GridHelper(100, 1);
   scene.add(gridHelper);
@@ -48,9 +62,9 @@ function init(window) {
     light:light,
     renderer:renderer,
     camera:camera,
-    cameraHelper:cameraHelper,
+    // cameraHelper:cameraHelper,
     controls:controls,
-    leapController:leapController
+    // leapController:leapController
   }
   var tween = projectile(scene);
 
@@ -73,34 +87,83 @@ function animate(time) {
 
 function render() {
   renderer.render( scene, camera );
+  updateIndexFingerSphere();
+  updatePointerLine();
 }
 
 
 
 function leapSetup (){
-  var controller = new Leap.Controller();
-  controller.connect();
-  debugger
-  return controller;
+  Leap.loop({
+        // frame callback is run before individual frame components
+        frame: function(frame){
+        
+        },
+        // hand callbacks are run once for each hand in the frame
+        hand: function(hnd){
+          updateHandModel(hnd);
+        }
+ });
+
+
+
+  // var controller = new Leap.Controller();
+  // controller.connect();
+  // $().on("deviceDisconnected", function (evt){
+  //   console.log("disconnect event", evt);
+  // });
+  // $().on("deviceConnected", function (evt){
+  //   console.log("connect event");
+  // });
+  // return controller;
 }
 
 
+function updateHandModel (hnd){
+  hand[hnd.type] = hnd;  
+}
+function updatePointerLine(){
+  if (!rightIndexPointerLine){
+    rightIndexPointerLine = Geometry.pointerLine();
+    scene.add(rightIndexPointerLine);
+  }
+
+  if(hand.right){
+    debugger
+    // rightIndexPointerLine.geometry.vertic
+    rightIndexPointerLine.geometry.verticesNeedUpdate = true;
+  }
 
 
 
+}
+
+function updateIndexFingerSphere (){
+  if (!rightIndexFingerSphere){
+    rightIndexFingerSphere = Geometry.sphere(1, 0x00ff00);
+    scene.add(rightIndexFingerSphere);
+  }
+
+
+
+  if (hand.right){
+      rightIndexFingerSphere.position.fromArray(hand.right.indexFinger.stabilizedTipPosition);
+  }
+
+
+
+}
 
 
 //******MOVE OUT *********//
 function projectile(scene){
-  var geo = new THREE.SphereGeometry(5,32,32);
-  var material = new THREE.MeshPhongMaterial();
-  var mesh = new THREE.Mesh(geo,material);
-  scene.add(mesh);
-  mesh.position.set(0,400,0);
+  var sphere = Geometry.sphere(5, 0xadadff);
+  scene.add(sphere);
+  sphere.position.set(0,400,0);
 
-  var start = mesh.position.clone(); // Will be modified
+  var start = sphere.position.clone(); // Will be modified
   var end = new THREE.Vector3();
-  return fromTo(mesh, end);
+  return fromTo(sphere, end);
 }
 
 function fromTo(obj, end, start, time, reset){

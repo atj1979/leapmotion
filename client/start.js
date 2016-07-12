@@ -5,13 +5,26 @@ var THREE = require("three");
 var OrbitControls = require("three-orbit-controls")(THREE);
 var TWEEN = require("tween");
 
+var cachedV3 = new THREE.Vector3();
+
 
 var Geometry = require("./Geometry");
 
 var camera, scene, renderer, controls, tween, container, light, leapController;
 var hand = {};
 var rightIndexFingerSphere;
-var rightIndexPointerLine;
+var rightThumbPointerLine, 
+  rightIndexPointerLine,
+  rightMiddlePointerLine,
+  rightRingPointerLine,
+  rightPinkyPointerLine;
+
+var leftThumbPointerLine, 
+  leftIndexPointerLine,
+  leftMiddlePointerLine,
+  leftRingPointerLine,
+  leftPinkyPointerLine;
+
 var handGeo = {
   right:{
     indexFinger:{
@@ -20,7 +33,8 @@ var handGeo = {
     }
   }
 };
-var leftIndexFingerSphere;
+
+
 init(window);
 animate();
 
@@ -124,18 +138,69 @@ function updateHandModel (hnd){
 }
 function updatePointerLine(){
   if (!rightIndexPointerLine){
+    rightThumbPointerLine = Geometry.pointerLine();
     rightIndexPointerLine = Geometry.pointerLine();
-    scene.add(rightIndexPointerLine);
+    rightMiddlePointerLine = Geometry.pointerLine();
+    rightRingPointerLine = Geometry.pointerLine();
+    rightPinkyPointerLine = Geometry.pointerLine();
+    scene.add(rightThumbPointerLine, rightIndexPointerLine, rightMiddlePointerLine, rightRingPointerLine, rightPinkyPointerLine);
   }
 
   if(hand.right){
-    debugger
-    // rightIndexPointerLine.geometry.vertic
+    rightThumbPointerLine.geometry.vertices[0].fromArray(hand.right.thumb.positions[4]);
+    rightThumbPointerLine.geometry.vertices[1].fromArray(hand.right.thumb.positions[3]);
+    rightThumbPointerLine.geometry.verticesNeedUpdate = true;
+
+    rightIndexPointerLine.geometry.vertices[0].fromArray(hand.right.indexFinger.positions[4]);
+    rightIndexPointerLine.geometry.vertices[1].fromArray(hand.right.indexFinger.positions[3]);
     rightIndexPointerLine.geometry.verticesNeedUpdate = true;
+
+    rightMiddlePointerLine.geometry.vertices[0].fromArray(hand.right.middleFinger.positions[4]);
+    rightMiddlePointerLine.geometry.vertices[1].fromArray(hand.right.middleFinger.positions[3]);
+    rightMiddlePointerLine.geometry.verticesNeedUpdate = true;
+
+    rightRingPointerLine.geometry.vertices[0].fromArray(hand.right.ringFinger.positions[4]);
+    rightRingPointerLine.geometry.vertices[1].fromArray(hand.right.ringFinger.positions[3]);
+    rightRingPointerLine.geometry.verticesNeedUpdate = true;
+
+    rightPinkyPointerLine.geometry.vertices[0].fromArray(hand.right.pinky.positions[4]);
+    rightPinkyPointerLine.geometry.vertices[1].fromArray(hand.right.pinky.positions[3]);
+    rightPinkyPointerLine.geometry.verticesNeedUpdate = true;
   }
 
 
 
+  if (!leftIndexPointerLine){
+    leftThumbPointerLine = Geometry.pointerLine();
+    leftIndexPointerLine = Geometry.pointerLine();
+    leftMiddlePointerLine = Geometry.pointerLine();
+    leftRingPointerLine = Geometry.pointerLine();
+    leftPinkyPointerLine = Geometry.pointerLine();
+    scene.add(leftThumbPointerLine, leftIndexPointerLine, leftMiddlePointerLine, leftRingPointerLine, leftPinkyPointerLine);
+  }
+
+  if(hand.left){
+    leftThumbPointerLine.geometry.vertices[0].fromArray(hand.left.thumb.positions[4]);
+    leftThumbPointerLine.geometry.vertices[1].fromArray(hand.left.thumb.positions[3]);
+    leftThumbPointerLine.geometry.verticesNeedUpdate = true;
+
+    leftIndexPointerLine.geometry.vertices[0].fromArray(hand.left.indexFinger.positions[4]);
+    leftIndexPointerLine.geometry.vertices[1].fromArray(hand.left.indexFinger.positions[3]);
+    leftIndexPointerLine.geometry.verticesNeedUpdate = true;
+
+    leftMiddlePointerLine.geometry.vertices[0].fromArray(hand.left.middleFinger.positions[4]);
+    leftMiddlePointerLine.geometry.vertices[1].fromArray(hand.left.middleFinger.positions[3]);
+    leftMiddlePointerLine.geometry.verticesNeedUpdate = true;
+
+    leftRingPointerLine.geometry.vertices[0].fromArray(hand.left.ringFinger.positions[4]);
+    leftRingPointerLine.geometry.vertices[1].fromArray(hand.left.ringFinger.positions[3]);
+    leftRingPointerLine.geometry.verticesNeedUpdate = true;
+
+    leftPinkyPointerLine.geometry.vertices[0].fromArray(hand.left.pinky.positions[4]);
+    leftPinkyPointerLine.geometry.vertices[1].fromArray(hand.left.pinky.positions[3]);
+    leftPinkyPointerLine.geometry.verticesNeedUpdate = true;
+
+  }
 }
 
 function updateIndexFingerSphere (){
@@ -143,16 +208,18 @@ function updateIndexFingerSphere (){
     rightIndexFingerSphere = Geometry.sphere(1, 0x00ff00);
     scene.add(rightIndexFingerSphere);
   }
-
-
-
   if (hand.right){
-      rightIndexFingerSphere.position.fromArray(hand.right.indexFinger.stabilizedTipPosition);
+      rightIndexFingerSphere.position.fromArray(hand.right.indexFinger.positions[4]);
   }
-
-
-
 }
+
+
+function arrToVector3(arr){
+  return new THREE.Vector3(arr[0], arr[1], arr[2]);
+}
+
+
+
 
 
 //******MOVE OUT *********//

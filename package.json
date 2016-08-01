@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "grunt build",
-    "postinstall": "grunt build",
-    "start": "grunt connect"
+    "postinstall": "grunt build && grunt connect"
   },
   "repository": {
     "type": "git",

@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "grunt build",
-    "postinstall": "grunt build && http-server"
+    "postinstall": "grunt build",
+    "start": "http-server"
   },
   "repository": {
     "type": "git",

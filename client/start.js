@@ -5,9 +5,8 @@ var THREE = require("three");
 var OrbitControls = require("three-orbit-controls")(THREE);
 var TWEEN = require("tween");
 
-var cachedV3 = new THREE.Vector3();
 
-
+var gestures = require("./gestures");
 var Geometry = require("./Geometry");
 
 var camera, scene, renderer, controls, tween, container, light, leapController;
@@ -35,6 +34,9 @@ var handGeo = {
 };
 
 
+
+
+
 init(window);
 animate();
 
@@ -42,7 +44,7 @@ function init(window) {
   container = document.createElement( 'div' );
   document.body.appendChild( container );
   camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 2000 );
-  camera.position.y = 400;
+  camera.position.z = 400;
 
   scene = new THREE.Scene();
   scene.add( new THREE.AmbientLight( 0x404040 ) );
@@ -60,7 +62,7 @@ function init(window) {
   // var cameraHelper = new THREE.CameraHelper(camera);
   // scene.add(cameraHelper);
 
-  var gridHelper = new THREE.GridHelper(100, 1);
+  var gridHelper = new THREE.GridHelper(100, 5);
   scene.add(gridHelper);
 
   controls = new OrbitControls( camera, container );
@@ -85,6 +87,10 @@ function init(window) {
   window.addEventListener("keypress", function(){
     tween.start();
   });
+
+  setupRings([new THREE.Vector3(50,50,-200),new THREE.Vector3(-50,100,-200),new THREE.Vector3(50,150,-200)], scene);
+
+  window.THREE = THREE;
 }
 
 function onWindowResize() {
@@ -103,6 +109,8 @@ function render() {
   renderer.render( scene, camera );
   updateIndexFingerSphere();
   updatePointerLine();
+  var a = gestures.tipsTogether(hand.left);
+  console.log(a);
 }
 
 
@@ -118,18 +126,6 @@ function leapSetup (){
           updateHandModel(hnd);
         }
  });
-
-
-
-  // var controller = new Leap.Controller();
-  // controller.connect();
-  // $().on("deviceDisconnected", function (evt){
-  //   console.log("disconnect event", evt);
-  // });
-  // $().on("deviceConnected", function (evt){
-  //   console.log("connect event");
-  // });
-  // return controller;
 }
 
 
@@ -230,24 +226,29 @@ function projectile(scene){
 
   var start = sphere.position.clone(); // Will be modified
   var end = new THREE.Vector3();
-  return fromTo(sphere, end);
+  return fromTo(sphere, end, null, null, function (obj){
+      sphere.visible=false;
+      console.log(obj);
+      // if (reset){
+      //   obj.position.set(start.x, start.y, start.z);
+      // }
+    });
 }
 
-function fromTo(obj, end, start, time, reset){
+function fromTo(obj, end, start, time, resetFn, startFn){
   time = time || 2;
+  startFn = startFn || function (){obj.visible = true;};
+  resetFn = resetFn || function (){obj.visible = false;};
   start = start || obj.position.clone();
   tween = new TWEEN.Tween(start.clone());
   tween
     .to(end, 2000)
+    .onStart(startFn)
     .easing(TWEEN.Easing.Cubic.In)
     .onUpdate(function (val){
       obj.position.set((1-val) * start.x, (1-val) * start.y, (1-val) * start.z);
     })
-    .onComplete(function (){
-      if (reset){
-        obj.position.set(start.x, start.y, start.z);
-      }
-    });
+    .onComplete(resetFn);
   return tween;
 }
 
@@ -256,4 +257,12 @@ function fromTo(obj, end, start, time, reset){
 
 
 
+
+function setupRings (positionArr, scene){
+  positionArr.forEach(function (v3){
+    var torus = Geometry.torus();
+    torus.position.set(v3.x, v3.y, v3.z);
+    scene.add(torus);
+  });
+}
 

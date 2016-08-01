@@ -2,7 +2,8 @@ var THREE = require("three");
 
 module.exports = {
   sphere:sphere,
-  pointerLine:pointerLine
+  pointerLine:pointerLine,
+  torus:torus
 };
 
 function sphere(size, color){
@@ -31,4 +32,12 @@ function pointerLine (vertices, color){
 
   var line = new THREE.Line( geometry, material );
   return line;
+}
+
+function torus (){
+  var geometry = new THREE.TorusGeometry( 10, 3, 16, 100 );
+  var material = new THREE.MeshPhongMaterial( { color: 0xffff00 } );
+  var torus = new THREE.Mesh( geometry, material );
+  torus.name = "torus";
+  return torus;
 }

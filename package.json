@@ -4,7 +4,9 @@
   "description": "Attempt to integrate a leap motion controller",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "grunt build",
+    "postinstall" : "grunt build",
+    "start": "grunt connect"
   },
   "repository": {
     "type": "git",
@@ -27,10 +29,12 @@
     "three": "^0.77.1",
     "three-orbit-controls": "^72.0.0",
     "three-stereo-effect": "^1.0.13",
-    "tween": "^0.9.0"
+    "tween": "^0.9.0",
+    "webvr": "0.0.0"
   },
   "devDependencies": {
     "grunt": "^1.0.1",
     "grunt-contrib-connect": "^1.0.2"
   }
+
 }

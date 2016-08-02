@@ -1,5 +1,6 @@
 
 var $ = require("jquery");
+var _ = require("lodash");
 var Leap = require("leapjs");
 var THREE = require("three");
 var OrbitControls = require("three-orbit-controls")(THREE);
@@ -44,7 +45,7 @@ function init(window) {
   container = document.createElement( 'div' );
   document.body.appendChild( container );
   camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 2000 );
-  camera.position.z = 400;
+  camera.position.set(0, 200, 400);
 
   scene = new THREE.Scene();
   scene.add( new THREE.AmbientLight( 0x404040 ) );
@@ -88,9 +89,9 @@ function init(window) {
     tween.start();
   });
 
-  setupRings([new THREE.Vector3(50,50,-200),new THREE.Vector3(-50,100,-200),new THREE.Vector3(50,150,-200)], scene);
-
   window.THREE = THREE;
+
+  gameSetup(scene);
 }
 
 function onWindowResize() {
@@ -101,7 +102,7 @@ function onWindowResize() {
 
 function animate(time) {
   requestAnimationFrame( animate );
-  TWEEN.update();
+  TWEEN.update(time);
   render();
 }
 
@@ -109,11 +110,33 @@ function render() {
   renderer.render( scene, camera );
   updateIndexFingerSphere();
   updatePointerLine();
-  var a = gestures.tipsTogether(hand.left);
-  console.log(a);
+  if ( gestures.indexPinkyTouch(hand) ){
+    lmp.sphereGun.reload();
+    console.log("reload");
+  }
+  if ( gestures.tipsTogether(hand.left)){
+    if (!hand.right){
+      window.thing.visible = false;
+      return;
+    }
+    
+    //Figure out the Vector the index finger is pointing
+    var indS = new THREE.Vector3().fromArray(hand.right.indexFinger.positions[3]);
+    var indE = new THREE.Vector3().fromArray(hand.right.indexFinger.positions[4]);
+    var newEnd = indE.clone().sub(indS).setLength(1000).add(indS);
+    lmp.sphereGun.fire(newEnd, indE);
+    if (!window.thing){
+      window.thing = Geometry.pointerLine();
+      scene.add(window.thing);
+    } else {
+      window.thing.visible=true;
+      window.thing.geometry.vertices[0].copy(newEnd);
+      window.thing.geometry.vertices[1].copy(indE);
+      window.thing.geometry.verticesNeedUpdate = true;
+    }
+
+  };
 }
-
-
 
 function leapSetup (){
   Leap.loop({
@@ -128,10 +151,10 @@ function leapSetup (){
  });
 }
 
-
 function updateHandModel (hnd){
   hand[hnd.type] = hnd;  
 }
+
 function updatePointerLine(){
   if (!rightIndexPointerLine){
     rightThumbPointerLine = Geometry.pointerLine();
@@ -209,14 +232,9 @@ function updateIndexFingerSphere (){
   }
 }
 
-
 function arrToVector3(arr){
   return new THREE.Vector3(arr[0], arr[1], arr[2]);
 }
-
-
-
-
 
 //******MOVE OUT *********//
 function projectile(scene){
@@ -236,20 +254,22 @@ function projectile(scene){
 }
 
 function fromTo(obj, end, start, time, resetFn, startFn){
-  time = time || 2;
+  time = time || 2000;
   startFn = startFn || function (){obj.visible = true;};
   resetFn = resetFn || function (){obj.visible = false;};
   start = start || obj.position.clone();
+  end  = end || new THREE.Vector3();
   tween = new TWEEN.Tween(start.clone());
+
   tween
-    .to(end, 2000)
+    .to(end, time)
     .onStart(startFn)
-    .easing(TWEEN.Easing.Cubic.In)
+    // .easing(TWEEN.Easing.Cubic.In)
     .onUpdate(function (val){
       obj.position.set((1-val) * start.x, (1-val) * start.y, (1-val) * start.z);
     })
     .onComplete(resetFn);
-  return tween;
+  return {tween:tween, obj:obj};
 }
 
 
@@ -265,4 +285,60 @@ function setupRings (positionArr, scene){
     scene.add(torus);
   });
 }
+
+function makeObjs(num, storage, geo, size){
+  storage = storage || [];
+  geo = geo || Geometry.sphere; 
+  for (var i = 0; i < num; i++){
+    storage.push(geo(size));
+  }
+  return storage;
+}
+
+
+function gameSetup (scene){
+
+  setupRings([new THREE.Vector3(50,50,-200),
+    new THREE.Vector3(-50,100,-200),
+    new THREE.Vector3(50,150,-200)], 
+    scene);
+
+  var ammo = makeObjs(100, null, null, 1);
+  lmp.sphereGun = new Gun(scene, ammo);
+}
+
+
+function addAmmoToScene (scene, amm){
+    amm.visible = false;
+    scene.add(amm);
+}
+
+
+function Gun (scene, ammo){
+  this.count = 0;
+  this.projectiles = ammo.map(function (obj){
+    addAmmoToScene(scene, obj);
+    return fromTo(obj);
+  });
+
+  this.fire = function (endV, startV ){
+    if (this.count > this.projectiles.length-1){
+      return; 
+    }
+    this.currentProjectile = this.projectiles[this.count];
+    
+    if (startV){
+      this.currentProjectile.obj.position.copy(startV);
+    }
+    this.currentProjectile.obj.visible = true;
+    this.currentProjectile.tween.to(endV, 5000);
+    this.currentProjectile.tween.start();
+    this.count++;
+  };
+
+  this.reload = function (){
+    this.count = 0;
+  };
+}
+
 

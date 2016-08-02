@@ -39,9 +39,8 @@ function thumbIndexTogether (leapHand, distanceAllowed){
   return thumbTip.distanceTo(indexTip) < distanceAllowed;
 }
 
-
 function indexPinkyTouch(leapHands, distanceAllowed){
-  distanceAllowed = distanceAllowed || 10;
+  distanceAllowed = distanceAllowed || 30;
   if (!leapHands || !leapHands.right || !leapHands.left){
     return;
   }
@@ -50,6 +49,7 @@ function indexPinkyTouch(leapHands, distanceAllowed){
   var rPinky = new THREE.Vector3().fromArray(leapHands.right.pinky.tipPosition);
   var lInd = new THREE.Vector3().fromArray(leapHands.left.indexFinger.tipPosition);
   var lPinky = new THREE.Vector3().fromArray(leapHands.left.pinky.tipPosition);
+  // console.log(rInd.distanceTo(lPinky), lInd.distanceTo(rPinky));
   
   if (rInd.distanceTo(lPinky) < distanceAllowed){
     return true;
@@ -58,7 +58,6 @@ function indexPinkyTouch(leapHands, distanceAllowed){
     return true;
   }
   return false;
-
 }
 
 function classicGunReady (){}

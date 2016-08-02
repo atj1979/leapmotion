@@ -4,8 +4,9 @@ var _ = require("lodash");
 var Leap = require("leapjs");
 var THREE = require("three");
 var OrbitControls = require("three-orbit-controls")(THREE);
+var TweenMax = require("gsap");
 var TWEEN = require("tween");
-
+window.TWEEN = TWEEN;
 
 var gestures = require("./gestures");
 var Geometry = require("./Geometry");
@@ -42,9 +43,7 @@ init(window);
 animate();
 
 function init(window) {
-  container = document.createElement( 'div' );
-  document.body.appendChild( container );
-  camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 2000 );
+  camera = new THREE.PerspectiveCamera( 100, window.innerWidth / window.innerHeight, 1, 2000 );
   camera.position.set(0, 200, 400);
 
   scene = new THREE.Scene();
@@ -53,11 +52,12 @@ function init(window) {
   light.position.set( 0, 1, 0 );
   scene.add( light );
 
-  renderer = new THREE.WebGLRenderer( { antialias: true } );
-  renderer.setPixelRatio( window.devicePixelRatio );
-  renderer.setSize( window.innerWidth, window.innerHeight );
+  renderer = new THREE.WebGLRenderer({antialias: true});
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
 
-  container.appendChild( renderer.domElement );
+  // container.appendChild( renderer.domElement );
   window.addEventListener( 'resize', onWindowResize, false );
 
   // var cameraHelper = new THREE.CameraHelper(camera);
@@ -66,7 +66,7 @@ function init(window) {
   var gridHelper = new THREE.GridHelper(100, 5);
   scene.add(gridHelper);
 
-  controls = new OrbitControls( camera, container );
+  controls = new OrbitControls( camera);
   //controls.addEventListener( 'change', render ); // add this only if there is no animation loop (requestAnimationFrame)
   controls.enableDamping = true;
   controls.dampingFactor = 0.25;
@@ -82,16 +82,12 @@ function init(window) {
     // cameraHelper:cameraHelper,
     controls:controls,
     // leapController:leapController
-  }
-  var tween = projectile(scene);
-
-  window.addEventListener("keypress", function(){
-    tween.start();
-  });
+  };
 
   window.THREE = THREE;
 
   gameSetup(scene);
+  // slowSphere(scene);
 }
 
 function onWindowResize() {
@@ -102,7 +98,7 @@ function onWindowResize() {
 
 function animate(time) {
   requestAnimationFrame( animate );
-  TWEEN.update(time);
+  TWEEN.update();
   render();
 }
 
@@ -253,24 +249,25 @@ function projectile(scene){
     });
 }
 
-function fromTo(obj, end, start, time, resetFn, startFn){
-  time = time || 2000;
-  startFn = startFn || function (){obj.visible = true;};
-  resetFn = resetFn || function (){obj.visible = false;};
-  start = start || obj.position.clone();
-  end  = end || new THREE.Vector3();
-  tween = new TWEEN.Tween(start.clone());
+// function fromTo(obj, end, start, time, resetFn, startFn){
+//   time = time || 2000;
+//   startFn = startFn || function (){obj.visible = true;};
+//   resetFn = resetFn || function (){obj.visible = false;};
+//   start = start || obj.position.clone();
+//   end  = end || new THREE.Vector3();
+//   tween = new TWEEN.Tween(start.clone());
 
-  tween
-    .to(end, time)
-    .onStart(startFn)
-    // .easing(TWEEN.Easing.Cubic.In)
-    .onUpdate(function (val){
-      obj.position.set((1-val) * start.x, (1-val) * start.y, (1-val) * start.z);
-    })
-    .onComplete(resetFn);
-  return {tween:tween, obj:obj};
-}
+//   tween
+//     .to(end, time)
+//     .onStart(startFn)
+//     // .easing(TWEEN.Easing.Cubic.In)
+//     .onUpdate(function (val){
+//       obj.position.set((1-val) * start.x, (1-val) * start.y, (1-val) * start.z);
+//       console.log(obj.position);
+//     })
+//     .onComplete(resetFn);
+//   return {tween:tween, obj:obj};
+// }
 
 
 
@@ -318,7 +315,7 @@ function Gun (scene, ammo){
   this.count = 0;
   this.projectiles = ammo.map(function (obj){
     addAmmoToScene(scene, obj);
-    return fromTo(obj);
+    return obj;
   });
 
   this.fire = function (endV, startV ){
@@ -326,13 +323,22 @@ function Gun (scene, ammo){
       return; 
     }
     this.currentProjectile = this.projectiles[this.count];
-    
+    var currentProjectile = this.currentProjectile;
     if (startV){
-      this.currentProjectile.obj.position.copy(startV);
+      this.currentProjectile.position.copy(startV);
     }
-    this.currentProjectile.obj.visible = true;
-    this.currentProjectile.tween.to(endV, 5000);
-    this.currentProjectile.tween.start();
+    this.currentProjectile.visible = true;
+    var currentPosition = currentProjectile.position.clone();
+    var endPosition = endV.clone(); 
+    var tw = new TWEEN.Tween(currentPosition);
+    tw.currentPosition = currentPosition;
+    tw.endPosition = endPosition;
+    tw.currentProjectile = currentProjectile;
+    tw.to(endV.clone(), 4000);
+    tw.onUpdate(function (){
+      tw.currentProjectile.position.set(tw.currentPosition.x, tw.currentPosition.y, tw.currentPosition.y);
+    })
+    tw.start();
     this.count++;
   };
 
@@ -342,3 +348,30 @@ function Gun (scene, ammo){
 }
 
 
+// function slowSphere (scene){
+
+//   var sph = Geometry.sphere();
+//   sph.position.set(-300, 50, 0);
+//   sph.visible = true;
+//   scene.add(sph);
+//   var start = sph.position.clone();
+//   var dest = sph.position.clone().set(300, 50, 0);
+//   window.b = new TWEEN.Tween(start)
+//     .to(dest, 3000)
+//     .onStart(function (){
+//       _object = sph.position.clone();
+//     })
+//     .onUpdate(function (val){
+//       console.log(val);
+//       sph.position.set(start.x, start.y, start.z);
+//     })
+//     .onComplete(function(){
+//       console.log('done');
+//     })
+//     .start();
+//     console.log('end of slowsphere')
+// }
+
+// var start = {x:0};
+// var end = {x:300};
+// new TWEEN.Tween(start).to(end, 1000).onUpdate(function (t){console.log(t, start, end)}).start();

@@ -1,12 +1,26 @@
 
 var $ = require("jquery");
 var _ = require("lodash");
-var Leap = require("leapjs");
 var THREE = require("three");
+
+var Leap = require("leapjs");
 var OrbitControls = require("three-orbit-controls")(THREE);
 var TweenMax = require("gsap");
 var TWEEN = require("tween");
+
+var claraLoader = require("./claraLoader");
+var environment = require("./environment");
+
+module.exports = {
+  THREE:THREE
+};
+
+
+
+
+
 window.TWEEN = TWEEN;
+window.THREE = THREE;
 
 var gestures = require("./gestures");
 var Geometry = require("./Geometry");
@@ -15,35 +29,14 @@ var camera, scene, renderer, controls, tween, container, light, leapController;
 var hand = {};
 var fingerLineGroups = [];
 var rightIndexFingerSphere;
-var rightThumbPointerLine, 
-  rightIndexPointerLine,
-  rightMiddlePointerLine,
-  rightRingPointerLine,
-  rightPinkyPointerLine;
-
-var leftThumbPointerLine, 
-  leftIndexPointerLine,
-  leftMiddlePointerLine,
-  leftRingPointerLine,
-  leftPinkyPointerLine;
-
-var handGeo = {
-  right:{
-    indexFinger:{
-      sphere:rightIndexFingerSphere, 
-      pointer:rightIndexPointerLine
-    }
-  }
-};
-
-
-
+var animateArray = [];
 
 
 init(window);
 animate();
 
 function init(window) {
+  console.log('init')
   camera = new THREE.PerspectiveCamera( 100, window.innerWidth / window.innerHeight, 1, 2000 );
   camera.position.set(0, 200, 400);
 
@@ -58,11 +51,8 @@ function init(window) {
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  // container.appendChild( renderer.domElement );
   window.addEventListener( 'resize', onWindowResize, false );
 
-  // var cameraHelper = new THREE.CameraHelper(camera);
-  // scene.add(cameraHelper);
 
   var gridHelper = new THREE.GridHelper(100, 5);
   scene.add(gridHelper);
@@ -87,8 +77,43 @@ function init(window) {
 
   window.THREE = THREE;
 
+
+  var assetList = [
+    "./assets/pokeball-vray.json",
+  ];
+  // assetList.forEach(function (fileName){
+  //   claraLoader.load(fileName, scene);
+  // });
+
+  var makePokeAmmo = function  (pokeball){
+    pokeball.scale.set(0.1, 0.1, 0.1); 
+    var ammo = makeObjs(100, null, pokeball, 3);
+    lmp.sphereGun = new Gun(scene, ammo, "ammo");
+  };
+  claraLoader.load(assetList[0], scene, makePokeAmmo);
+    
   gameSetup(scene);
-  // slowSphere(scene);
+
+
+    
+  
+
+////  Start Cubemap
+  var cubeMap = environment.getCubeMap(1);
+  var cubeShader = THREE.ShaderLib['cube'];
+  cubeShader.uniforms['tCube'].value = cubeMap;
+
+  var skyBoxMaterial = new THREE.ShaderMaterial({
+      fragmentShader: cubeShader.fragmentShader,
+      vertexShader: cubeShader.vertexShader,
+      uniforms: cubeShader.uniforms,
+      depthWrite: false,
+      side: THREE.DoubleSide
+  });
+
+  var skyBox = new THREE.Mesh(new THREE.SphereGeometry(1000, 64, 64), skyBoxMaterial);
+  scene.add(skyBox);
+  //  End Cubemap
 }
 
 function onWindowResize() {
@@ -103,9 +128,15 @@ function animate(time) {
   render();
 }
 
+
+
 function render() {
   renderer.render( scene, camera );
-  updateIndexFingerSphere();
+  if (animateArray.length){
+    animateArray.forEach(function (fxn){
+      fxn.call();
+    })
+  }
   updatePointerLine(scene);
   if ( gestures.indexPinkyTouch(hand) ){
     lmp.sphereGun.reload();
@@ -115,24 +146,11 @@ function render() {
     if (!hand.right){
       return;
     }
-    
     //Figure out the Vector the index finger is pointing
     var indS = new THREE.Vector3().fromArray(hand.right.fingers[1].positions[4]);
     var indE = new THREE.Vector3().fromArray(hand.right.fingers[1].positions[3]);
-    var newEnd = indS.clone().sub(indE).setLength(1000).add(indE);
+    var newEnd = indS.clone().sub(indE).setLength(3000).add(indE);
     lmp.sphereGun.fire(newEnd.clone(), indS.clone());
-    
-
-    // // Pointer on index finger for helping
-    // if (!window.thing){
-    //   window.thing = Geometry.pointerLine();
-    //   scene.add(window.thing);
-    // } else {
-    //   window.thing.visible=true;
-    //   window.thing.geometry.vertices[0].copy(newEnd);
-    //   window.thing.geometry.vertices[1].copy(indS);
-    //   window.thing.geometry.verticesNeedUpdate = true;
-    // }
 
   };
 }
@@ -158,6 +176,10 @@ function updatePointerLine(scene){
   if (!hand || !hand.right || !hand.left){
     return;
   }
+  var left = hand.left;
+  // console.log(left.confidence, left.grabStrength, left.pinchStrength, left.timeVisible);
+  // console.log(hand.left.confidence, hand.right.confidence);
+  var visible = true;
   var rFingersJoints = hand.right.fingers.map(function(finger){
     return finger.positions;
   });
@@ -170,7 +192,7 @@ function updatePointerLine(scene){
     fingerLineGroups.forEach(function(lineGroup){
       lineGroup.forEach(function(line){
         recursiveRemove(line);
-      })
+      });
     });
     fingerLineGroups=[];
 
@@ -187,10 +209,18 @@ function updatePointerLine(scene){
     });
   } else {
     allJoints.forEach(function (jointGroup, i){
+      if ((i < 4 && hand.right.confidence < 0.8) || (i < 4 && hand.left.confidence < 0.8)){
+        visible = false;
+      }
       var lines = fingerLineGroups[i];
       jointGroup.forEach(function (joint, i, jointArr){
+
         if (jointArr[i+2]){
           var line = lines[i];
+          line.visible=visible;
+          if (!visible){
+            return;
+          } 
           line.geometry.vertices[0].fromArray(jointArr[i+1]);
           line.geometry.vertices[1].fromArray(jointArr[i+2]);
           line.geometry.verticesNeedUpdate = true;
@@ -252,9 +282,17 @@ function setupRings (positionArr, scene){
 
 function makeObjs(num, storage, geo, size){
   storage = storage || [];
-  geo = geo || Geometry.sphere; 
-  for (var i = 0; i < num; i++){
-    storage.push(geo(size));
+
+  if (geo){
+    for (var i = 0; i < num; i++){
+      storage.push(geo.clone());
+    }
+  } else {
+    
+    geo = Geometry.sphere; 
+    for (var i = 0; i < num; i++){
+      storage.push(geo(size));
+    }
   }
   return storage;
 }
@@ -266,8 +304,6 @@ function gameSetup (scene){
     new THREE.Vector3(50,150,-200)], 
     scene);
 
-  var ammo = makeObjs(100, null, null, 3);
-  lmp.sphereGun = new Gun(scene, ammo);
 }
 
 function addAmmoToScene (scene, amm){
@@ -275,9 +311,10 @@ function addAmmoToScene (scene, amm){
     scene.add(amm);
 }
 
-function Gun (scene, ammo){
+function Gun (scene, ammo, ammoName){
   this.count = 0;
   this.projectiles = ammo.map(function (obj){
+    obj.name = ammoName;
     addAmmoToScene(scene, obj);
     return obj;
   });
@@ -303,7 +340,7 @@ function Gun (scene, ammo){
     tw.currentPosition = currentPosition;
     tw.endPosition = endPosition;
     tw.currentProjectile = currentProjectile;
-    tw.to(endV.clone(), 4000);
+    tw.to(endV.clone(), 2000);
     tw.onUpdate(function (){
       tw.currentProjectile.position.set(tw.currentPosition.x, tw.currentPosition.y, tw.currentPosition.z);
     });

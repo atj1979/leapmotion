@@ -14,15 +14,22 @@ module.exports = function(grunt) {
       tasks: ['browserify']
     },
     browserify: {
-      vendor: {
-        src: [],
-        dest: 'public/js/vendor.js',
+      // vendor: {
+      //   src: [],
+      //   dest: 'public/js/vendor.js',
        
-      },
+      // },
       client: {
         src: ['client/**/*.js'],
         dest: 'public/js/scripts.js',
        
+      },
+      options: {
+        watch:true,
+        keepalive:true,
+        browserifyOptions: {
+           debug: true
+        }
       }
     },
 

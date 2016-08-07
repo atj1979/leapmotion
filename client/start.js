@@ -9,7 +9,11 @@ var TweenMax = require("gsap");
 var TWEEN = require("tween");
 
 var claraLoader = require("./claraLoader");
+var colladaLoader = require("./colladaLoader");
 var environment = require("./environment");
+var anim = require("./animations");
+
+var utils = require("./utils");
 
 module.exports = {
   THREE:THREE
@@ -21,6 +25,7 @@ module.exports = {
 
 window.TWEEN = TWEEN;
 window.THREE = THREE;
+document.THREE= THREE;
 
 var gestures = require("./gestures");
 var Geometry = require("./Geometry");
@@ -31,9 +36,29 @@ var fingerLineGroups = [];
 var rightIndexFingerSphere;
 var animateArray = [];
 
+var raycaster = new THREE.Raycaster();
+var mouse = new THREE.Vector2();
+
 
 init(window);
 animate();
+function onMouseDown(evt){
+  var intersects = raycaster.intersectObjects(lmp.scene.children);
+
+  var end = new THREE.Vector3().copy(intersects[0].point);
+  var start = new THREE.Vector3().copy(camera.position);
+
+
+  lmp.sphereGun.fire(end, start);
+}
+
+function onMouseMove(evt) {
+  // calculate mouse position in normalized device coordinates
+  // (-1 to +1) for both components
+
+  mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+  mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;   
+}
 
 function init(window) {
   console.log('init')
@@ -41,6 +66,7 @@ function init(window) {
   camera.position.set(0, 200, 400);
 
   scene = new THREE.Scene();
+  scene.getChildrenByName = utils.getChildrenByName;
   scene.add( new THREE.AmbientLight( 0x404040 ) );
   light = new THREE.DirectionalLight( 0xffffff );
   light.position.set( 0, 1, 0 );
@@ -75,30 +101,38 @@ function init(window) {
     // leapController:leapController
   };
 
+  Geometry.clock(scene);
+  gameSetup(scene);
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mousedown', onMouseDown);
+
   window.THREE = THREE;
 
-
+  /////ASYNC/////////////////////////////////////////////////
   var assetList = [
     "./assets/pokeball-vray.json",
+    "./assets/squirtle/squirtle-pokemon-go.json",
+    "./assets/articuno/articuno-pokemon-go.json",
+    "./assets/piplup/piplup.json",
+    "./assets/scyther/scyther-pokemon-go.json"
   ];
-  // assetList.forEach(function (fileName){
-  //   claraLoader.load(fileName, scene);
-  // });
 
   var makePokeAmmo = function  (pokeball){
+    pokeball.name = "pokeball";
     pokeball.scale.set(0.1, 0.1, 0.1); 
     var ammo = makeObjs(100, null, pokeball, 3);
     lmp.sphereGun = new Gun(scene, ammo, "ammo");
   };
   claraLoader.load(assetList[0], scene, makePokeAmmo);
-    
-  gameSetup(scene);
 
+  // claraLoader.load(assetList[3], scene, function(obj){
+  //   obj.name = "piplup";
+  //   obj.scale.set(30,30,30);
+  //   scene.add(obj);
+  //   window.piplup = obj;
+  // });
 
-    
-  
-
-////  Start Cubemap
+  ////  Start Cubemap
   var cubeMap = environment.getCubeMap(1);
   var cubeShader = THREE.ShaderLib['cube'];
   cubeShader.uniforms['tCube'].value = cubeMap;
@@ -114,6 +148,11 @@ function init(window) {
   var skyBox = new THREE.Mesh(new THREE.SphereGeometry(1000, 64, 64), skyBoxMaterial);
   scene.add(skyBox);
   //  End Cubemap
+  Geometry.loadGoats(scene);
+  //// END ASYNC ////////////////////////////////////////////
+
+
+
 }
 
 function onWindowResize() {
@@ -131,6 +170,7 @@ function animate(time) {
 
 
 function render() {
+  raycaster.setFromCamera( mouse, camera ); 
   renderer.render( scene, camera );
   if (animateArray.length){
     animateArray.forEach(function (fxn){
@@ -303,6 +343,11 @@ function gameSetup (scene){
     new THREE.Vector3(-50,100,-200),
     new THREE.Vector3(50,150,-200)], 
     scene);
+  
+
+  Geometry.arrow(scene, 10);
+
+
 
 }
 
@@ -323,6 +368,7 @@ function Gun (scene, ammo, ammoName){
     if (this.count > this.projectiles.length-1){
       return; 
     }
+    var animationTime = 2000;
     this.currentProjectile = this.projectiles[this.count];
     var currentProjectile = this.currentProjectile;
     this.currentProjectile.visible = true;
@@ -340,8 +386,10 @@ function Gun (scene, ammo, ammoName){
     tw.currentPosition = currentPosition;
     tw.endPosition = endPosition;
     tw.currentProjectile = currentProjectile;
-    tw.to(endV.clone(), 2000);
+    tw.to(endV.clone(), animationTime);
     tw.onUpdate(function (){
+      var twRot = tw.currentProjectile.rotation;
+      twRot.setFromVector3(twRot.toVector3().add(new THREE.Vector3(0.1,0.1,0)));
       tw.currentProjectile.position.set(tw.currentPosition.x, tw.currentPosition.y, tw.currentPosition.z);
     });
     tw.onComplete(function (){

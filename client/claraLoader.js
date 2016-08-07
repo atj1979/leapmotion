@@ -9,7 +9,6 @@ function load (filePath, scene, callback){
   var objectLoader = new THREE.ObjectLoader();
   objectLoader.load(filePath, function ( obj ) {
     var group = new THREE.Group();
-    group.name = "Pokeball";
     if (obj.constructor === THREE.Scene){
       var kids = [];
       obj.children.forEach(function (child){
@@ -22,14 +21,17 @@ function load (filePath, scene, callback){
       });
     }
     // scene.add(group);
-
     if (callback){
       callback.call(this, group);
     }
     return group;
-  });
+  }, progress, errors);
   // END Clara.io JSON loader code
 }
 
 
 
+function progress(){}
+function errors(val){
+  console.log(val);
+}
